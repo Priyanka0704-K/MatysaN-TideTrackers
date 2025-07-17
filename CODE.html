@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Safe Sea App - Coastal Emergency Management</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <style>
+        /* General Reset and Body Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body { /* Ensure html also takes full height for proper vh unit usage */
+            height: 100%;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+            display: flex; /* Use flexbox for overall layout */
+            flex-direction: column;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            flex-grow: 1; /* Allow container to grow */
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header Styles */
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .header p {
+            color: #7f8c8d;
+            font-size: 1.1em;
+        }
+
+        /* Main Content Layout */
+        .main-content {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+            flex-grow: 1; /* Allow main content to grow */
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            height: fit-content;
+        }
+
+        .menu-item {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            margin-bottom: 10px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            text-align: left;
+        }
+
+        .menu-item:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+        }
+
+        .menu-item.active {
+            background: #2c3e50;
+        }
+
+        /* Content Area Styles */
+        .content-area {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            min-height: 600px;
+        }
+
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        /* Animations for Sections */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Weather Grid Styles */
+        .weather-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .weather-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            border-left: 4px solid #3498db;
+            transition: transform 0.3s ease;
+        }
+
+        .weather-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .weather-card h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .weather-card .value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #3498db;
+        }
+
+        /* Alert Card Styles */
+        .alert-card {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid #f39c12;
+            transition: transform 0.3s ease;
+        }
+
+        .alert-card:hover {
+            transform: translateX(5px);
+        }
+
+        .alert-card.high {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            border-left-color: #e74c3c;
+        }
+
+        .alert-card.medium {
+            background: #fff3cd;
+            border-color: #ffeaa7;
+            border-left-color: #f39c12;
+        }
+
+        .alert-card.low {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            border-left-color: #28a745;
+        }
+
+        /* Card Styles for Routes, Protocols, Contacts */
+        .route-card, .protocol-card, .contact-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid #27ae60;
+            transition: transform 0.3s ease;
+        }
+
+        .route-card:hover, .protocol-card:hover, .contact-card:hover {
+            transform: translateX(5px);
+        }
+
+        /* Forum Post Styles */
+        .forum-post {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid #9b59b6;
+            transition: transform 0.3s ease;
+        }
+
+        .forum-post:hover {
+            transform: translateX(5px);
+        }
+
+        .forum-post .user {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .forum-post .time {
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+
+        .forum-post .message {
+            margin: 10px 0;
+        }
+
+        .forum-post .likes {
+            color: #e74c3c;
+            font-size: 0.9em;
+        }
+
+        /* Form Group Styles */
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-family: inherit;
+            resize: vertical;
+        }
+
+        /* Button Styles */
+        .btn {
+            background: #3498db;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-right: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #27ae60;
+        }
+
+        .btn-success:hover {
+            background: #219a52;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        /* Emergency Grid Styles */
+        .emergency-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .emergency-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #e74c3c;
+            transition: transform 0.3s ease;
+        }
+
+        .emergency-section:hover {
+            transform: translateY(-5px);
+        }
+
+        .emergency-section h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .emergency-section ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .emergency-section li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .emergency-section li:last-child {
+            border-bottom: none;
+        }
+
+        .emergency-section a {
+            color: #3498db;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .emergency-section a:hover {
+            text-decoration: underline;
+        }
+
+        /* Modal Styles (General) */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6); /* Darker overlay */
+            z-index: 1000;
+            animation: fadeIn 0.3s ease;
+            display: flex; /* Use flexbox to center content */
+            align-items: center; /* Center vertically */
+            justify-content: center; /* Center horizontally */
+            backdrop-filter: blur(5px); /* Add blur to background */
+        }
+
+        /* Modal Content Styles (Login Page Specific) */
+        .modal-content {
+            background: linear-gradient(135deg, #f0f4f8 0%, #e0e7ed 100%); /* Subtle gradient background */
+            padding: 40px; /* Increased padding */
+            border-radius: 20px; /* More rounded corners */
+            width: 90%; /* Responsive width */
+            max-width: 450px; /* Max width for larger screens */
+            text-align: center;
+            animation: slideIn 0.4s ease-out; /* Slightly longer, smoother animation */
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2); /* Enhanced shadow */
+            position: relative; /* For close button positioning */
+            border: 1px solid rgba(255, 255, 255, 0.3); /* Light border */
+        }
+
+        /* Close button for modals */
+        .close {
+            color: #888;
+            position: absolute; /* Position relative to modal-content */
+            top: 15px;
+            right: 20px;
+            font-size: 32px; /* Larger close button */
+            font-weight: normal; /* Less bold */
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .close:hover {
+            color: #333;
+        }
+
+        /* Form group styling within modals (Login Page Specific) */
+        .modal-content .form-group {
+            margin-bottom: 25px; /* Increased margin */
+            text-align: left; /* Align labels left */
+        }
+
+        .modal-content .form-group label {
+            color: #4a5568; /* Darker label color */
+            font-size: 1.1em; /* Larger label font */
+            margin-bottom: 8px; /* More space below label */
+            font-weight: 600; /* Slightly bolder labels */
+        }
+
+        .modal-content .form-group input[type="text"],
+        .modal-content .form-group input[type="password"] {
+            width: 100%;
+            padding: 14px 18px; /* Increased padding */
+            border: 1px solid #cdd5df; /* Softer border */
+            border-radius: 10px; /* More rounded inputs */
+            font-family: inherit;
+            font-size: 1.05em; /* Slightly larger input text */
+            transition: all 0.3s ease;
+            background-color: #fcfdff; /* Light background for inputs */
+        }
+
+        .modal-content .form-group input[type="text"]:focus,
+        .modal-content .form-group input[type="password"]:focus {
+            outline: none;
+            border-color: #667eea; /* Highlight on focus */
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2); /* Soft glow on focus */
+            transform: translateY(-2px); /* Slight lift on focus */
+        }
+
+        /* Button styling for submit (Login Page Specific) */
+        .modal-content .btn-success {
+            width: 100%; /* Full width button */
+            padding: 15px 20px; /* Increased padding */
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); /* Gradient button */
+            color: white;
+            border: none;
+            border-radius: 12px; /* More rounded button */
+            font-size: 1.2em; /* Larger font */
+            font-weight: 700; /* Bolder text */
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(118, 75, 162, 0.3); /* Button shadow */
+        }
+
+        .modal-content .btn-success:hover {
+            transform: translateY(-3px); /* More pronounced lift on hover */
+            box-shadow: 0 8px 20px rgba(118, 75, 162, 0.4);
+            background: linear-gradient(90deg, #5a6edb 0%, #6a3e92 100%); /* Darker gradient on hover */
+        }
+
+        /* Status Indicator Styles */
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-active {
+            background: #27ae60;
+            animation: pulse 2s infinite;
+        }
+
+        .status-warning {
+            background: #f39c12;
+            animation: pulse 2s infinite;
+        }
+
+        .status-danger {
+            background: #e74c3c;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        /* Time Display Styles */
+        .time-display {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        /* Responsive Design for smaller screens */
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                order: 2;
+            }
+            .content-area {
+                order: 1;
+            }
+            .weather-grid {
+                grid-template-columns: 1fr;
+            }
+            .emergency-grid {
+                grid-template-columns: 1fr;
+            }
+            .header h1 {
+                font-size: 2em;
+            }
+            .time-display {
+                position: static;
+                margin-bottom: 10px;
+                text-align: center;
+            }
+            .modal-content {
+                padding: 30px; /* Slightly less padding */
+            }
+            .modal-content .form-group label {
+                font-size: 1em; /* Adjust label font size */
+            }
+            .modal-content .form-group input {
+                padding: 12px 15px; /* Adjust input padding */
+            }
+            .modal-content .btn-success {
+                padding: 12px 15px; /* Adjust button padding */
+                font-size: 1.1em; /* Adjust button font size */
+            }
+        }
+
+        /* Map Section styles from Finaldraft.html */
+        #interactiveMapSection { /* Use the new ID for the section */
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        #fishingMap {
+            width: 100%;
+            height: 400px;
+            border-radius: 12px;
+            margin-top: 1rem;
+        }
+        /* 🌍 Map Legend Styling */
+        .map-legend {
+            background: white;
+            padding: 8px;
+            border-radius: 8px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.3);
+            font-size: 14px;
+        }
+        .map-legend h4 {
+            margin: 0 0 5px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="time-display" id="currentTime"></div>
+    <div class="container">
+        <div class="header">
+            <h1>🌊 Safe Sea App: Coastal Emergency Management (India) </h1>
+            <p>Empowering Indian coastal communities with timely information and resources for disaster preparedness and safety.</p>
+            <div id="userWelcome" style="margin-top:10px; font-weight:bold;"></div>
+        </div>
+        <div class="main-content">
+            <div class="sidebar">
+                <button class="menu-item active" onclick="showSection('home')">🏠 Home Dashboard</button>
+                <button class="menu-item" onclick="showSection('alerts')">🚨 Alerts & Advisories</button>
+                <button class="menu-item" onclick="showSection('evacuation')">🚶 Evacuation Routes & Shelters</button>
+                <button class="menu-item" onclick="showSection('safety')">🛡️ Safety Protocols & Preparedness</button>
+                <button class="menu-item" onclick="showSection('forum')">💬 Community Forum</button>
+                <button class="menu-item" onclick="showSection('emergency')">📞 Emergency Contacts (India)</button>
+                <button class="menu-item" onclick="showSection('resources')">🏥 Disaster Resources & Aid</button>
+                <button class="menu-item" onclick="showSection('interactiveMapSection')">🗺️ Interactive Coastal Map</button>
+            </div>
+            <div class="content-area">
+                <!-- Home Section -->
+                <div id="home" class="section active">
+                    <h2>Home Dashboard: Coastal Overview</h2>
+                    <h3>🌤️ Current Weather & Ocean Conditions (Chennai)</h3>
+                    <div class="weather-grid">
+                        <div class="weather-card">
+                            <h3>🌡️ Temperature</h3>
+                            <div class="value" id="temperature">30°C</div>
+                            <p>Feels like 35°C</p>
+                        </div>
+                        <div class="weather-card">
+                            <h3>🌪️ Wind Speed</h3>
+                            <div class="value" id="windSpeed">18 km/h</div>
+                            <p>From SW</p>
+                        </div>
+                        <div class="weather-card">
+                            <h3>🌊 Wave Height</h3>
+                            <div class="value" id="waveHeight">2.5m</div>
+                            <p>Moderate Swell</p>
+                        </div>
+                        <div class="weather-card">
+                            <h3>💧 Humidity</h3>
+                            <div class="value" id="humidity">80%</div>
+                            <p>High</p>
+                        </div>
+                        <div class="weather-card">
+                            <h3>⬆️ High Tide</h3>
+                            <div class="value" id="highTide">11:30 AM</div>
+                            <p>Height: 1.8m</p>
+                        </div>
+                        <div class="weather-card">
+                            <h3>⬇️ Low Tide</h3>
+                            <div class="value" id="lowTide">05:45 PM</div>
+                            <p>Height: 0.5m</p>
+                        </div>
+                    </div>
+                    <h3>🚨 Active Alerts & Advisories</h3>
+                    <div id="alertsList">
+                        <div class="alert-card high">
+                            <h4>Cyclone Warning: IMD Alert (Category 1)</h4>
+                            <p><strong>Issued by:</strong> IMD, Chennai</p>
+                            <p><strong>Impact:</strong> Heavy rainfall, strong winds (60-80 km/h), rough seas. Fishermen advised not to venture into the sea.</p>
+                        </div>
+                        <div class="alert-card medium">
+                            <h4>High Wave Advisory for Tamil Nadu Coast</h4>
+                            <p><strong>Issued by:</strong> INCOIS</p>
+                            <p><strong>Impact:</strong> Waves up to 3 meters expected. Coastal residents and tourists advised caution.</p>
+                        </div>
+                    </div>
+                    <h3>🎣 Fishermen Advisory</h3>
+                    <div class="route-card">
+                        <h4>Sea State Warning</h4>
+                        <p><strong>Current Status:</strong> Rough to Very Rough. Small boats and trawlers advised to return to shore.</p>
+                        <p><strong>Next Update:</strong> 4 hours</p>
+                    </div>
+                    <div class="route-card">
+                        <h4>No-Fishing Zone Notification</h4>
+                        <p>Certain areas declared no-fishing zones due to marine conservation efforts. Please refer to the Interactive Map.</p>
+                    </div>
+                </div>
+
+                <!-- Alerts & Notifications Section -->
+                <div id="alerts" class="section">
+                    <h2>Alerts & Advisories: Detailed Information</h2>
+                    <div id="fullAlertsList">
+                        <div class="alert-card high">
+                            <h3>Critical Cyclone Alert (Category 3) - Bay of Bengal</h3>
+                            <p><strong>Issued By:</strong> India Meteorological Department (IMD)</p>
+                            <p><strong>Issued On:</strong> 2025-07-17 10:00 AM IST</p>
+                            <p><strong>Impact:</strong> Extremely high winds (120-150 km/h), torrential rainfall, severe storm surge up to 3 meters. Widespread coastal flooding and damage to infrastructure expected in affected districts (e.g., Chennai, Cuddalore, Nellore).</p>
+                            <p><strong>Recommendation:</strong> Immediate evacuation for all residents in low-lying coastal areas and designated vulnerable zones. Move to official cyclone shelters or safer locations. Follow instructions from NDRF/SDRF teams. Do not venture out.</p>
+                        </div>
+                        <div class="alert-card medium">
+                            <h3>Tsunami Watch - Andaman & Nicobar Region</h3>
+                            <p><strong>Issued By:</strong> Indian National Centre for Ocean Information Services (INCOIS)</p>
+                            <p><strong>Issued On:</strong> 2025-07-17 09:30 AM IST</p>
+                            <p><strong>Impact:</strong> Potential for hazardous tsunami waves following an offshore earthquake (Magnitude 7.5) near Sumatra. First wave expected along Andaman coast by 11:00 AM IST, reaching mainland coasts later.</p>
+                            <p><strong>Recommendation:</strong> Immediately move to higher ground (at least 10 meters above sea level) if you are in coastal areas. Stay away from beaches, estuaries, and river mouths. Do not return until official "all clear" is announced by authorities.</p>
+                        </div>
+                        <div class="alert-card low">
+                            <h3>Heavy Rainfall Advisory - Kerala Coast</h3>
+                            <p><strong>Issued By:</strong> India Meteorological Department (IMD)</p>
+                            <p><strong>Issued On:</strong> 2025-07-17 08:00 AM IST</p>
+                            <p><strong>Impact:</strong> Scattered to widespread moderate rainfall with isolated heavy falls expected. Localized waterlogging possible in urban areas.</p>
+                            <p><strong>Recommendation:</strong> Exercise caution while driving. Avoid waterlogged areas. Stay updated with local weather forecasts and advisories from district administration.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Evacuation Routes Section -->
+                <div id="evacuation" class="section">
+                    <h2>Evacuation Routes & Designated Shelters</h2>
+                    <p>Locate the safest evacuation routes and nearest emergency shelters in your region. Follow local administration directives.</p>
+                    <div id="evacuationMap" style="height: 500px; width: 100%;"></div>
+                    <h3>Designated Evacuation Shelters (Example: Tamil Nadu)</h3>
+                    <div class="route-card">
+                        <h4>Chennai Corporation Cyclone Shelter</h4>
+                        <p><strong>Address:</strong> Community Hall, Besant Nagar, Chennai</p>
+                        <p><strong>Capacity:</strong> 750 people</p>
+                        <p><strong>Status:</strong> Open for all coastal residents.</p>
+                        <p><strong>Contact:</strong> Chennai Corporation Helpline: 1913</p>
+                    </div>
+                    <div class="route-card">
+                        <h4>Puducherry Government School Shelter</h4>
+                        <p><strong>Address:</strong> Govt. Higher Secondary School, Ariyankuppam, Puducherry</p>
+                        <p><strong>Capacity:</strong> 400 people</p>
+                        <p><strong>Status:</strong> Open, medical assistance available.</p>
+                        <p><strong>Contact:</strong> District Disaster Management Authority: 1077</p>
+                    </div>
+                    <div class="route-card">
+                        <h4>Kochi Community Cyclone Shelter</h4>
+                        <p><strong>Address:</strong> Fisheries Community Hall, Fort Kochi, Kerala</p>
+                        <p><strong>Capacity:</strong> 600 people</p>
+                        <p><strong>Status:</strong> Standby, ready for activation.</p>
+                        <p><strong>Contact:</strong> Kerala State Disaster Management Authority: 1070</p>
+                    </div>
+                </div>
+
+                <!-- Safety Protocols Section -->
+                <div id="safety" class="section">
+                    <h2>Safety Protocols & Preparedness Guidelines</h2>
+                    <p>Essential safety guidelines for various coastal emergencies. Preparedness saves lives!</p>
+                    <div class="protocol-card">
+                        <h3>Before a Cyclone (India Specific)</h3>
+                        <ul>
+                            <li><strong>Secure your home:</strong> Fasten loose tiles, repair doors/windows. Remove dead branches from trees.</li>
+                            <li><strong>Emergency Kit (Go-Bag):</strong> Keep a kit ready with essentials (see below).</li>
+                            <li><strong>Stay Informed:</strong> Regularly listen to radio/TV for IMD bulletins.</li>
+                            <li><strong>Evacuation Plan:</strong> Know your designated cyclone shelter and evacuation route. Discuss with family.</li>
+                            <li><strong>Protect Documents:</strong> Keep important documents and valuables in waterproof bags.</li>
+                            <li><strong>Livestock Safety:</strong> Move livestock to safer, higher ground.</li>
+                        </ul>
+                    </div>
+                    <div class="protocol-card">
+                        <h3>During a Tsunami (India Specific)</h3>
+                        <ul>
+                            <li><strong>Natural Warnings:</strong> If you are in a coastal area and feel a strong earthquake, or observe unusual sea behavior (sudden recession or rise of sea), or hear a loud ocean roar, immediately move to higher ground. Do not wait for official warnings.</li>
+                            <li><strong>Official Warnings:</strong> If you receive an alert from INCOIS, NDMA, or local authorities, evacuate immediately to designated safe zones.</li>
+                            <li><strong>Stay on High Ground:</strong> Do not return to coastal areas until an official "all clear" is announced. Tsunami waves can continue for hours.</li>
+                            <li><strong>Avoid Beaches:</strong> Stay away from beaches, estuaries, and river mouths during a tsunami watch/warning.</li>
+                        </ul>
+                    </div>
+                    <div class="protocol-card">
+                        <h3>During Floods (India Specific)</h3>
+                        <ul>
+                            <li><strong>Do Not Walk/Drive Through Water:</strong> Six inches of fast-moving water can knock you down, and two feet can sweep away a vehicle.</li>
+                            <li><strong>Turn Off Utilities:</strong> If advised, turn off electricity and gas at the main switch.</li>
+                            <li><strong>Boil Drinking Water:</strong> If tap water is contaminated, boil it before consumption or use bottled water.</li>
+                            <li><strong>Stay on High Ground:</strong> Move to the highest floor of your house or a designated flood shelter.</li>
+                        </ul>
+                    </div>
+                    <div class="protocol-card">
+                        <h3>Essential Emergency Kit (Go-Bag) for Indian Families</h3>
+                        <ul>
+                            <li><strong>Water:</strong> At least 3-4 liters per person per day for 3 days (for drinking and sanitation).</li>
+                            <li><strong>Food:</strong> Non-perishable food items (biscuits, dry fruits, ready-to-eat meals) for 3 days.</li>
+                            <li><strong>First-Aid Kit:</strong> Bandages, antiseptic, pain relievers, essential medicines (for chronic conditions).</li>
+                            <li><strong>Lighting:</strong> Flashlight with extra batteries, candles, matches/lighter.</li>
+                            <li><strong>Communication:</strong> Fully charged mobile phone with power bank, a battery-operated radio.</li>
+                            <li><strong>Personal Hygiene:</strong> Soap, sanitizer, toothbrush, toothpaste, sanitary napkins.</li>
+                            <li><strong>Important Documents:</strong> Copies of Aadhaar, PAN, ration card, property documents, insurance papers, cash in a waterproof bag.</li>
+                            <li><strong>Tools:</strong> Whistle, multi-purpose tool, rope.</li>
+                            <li><strong>Clothing:</strong> Extra set of clothes, rain gear.</li>
+                            <li><strong>Special Needs:</strong> Baby food, diapers, pet food, specific medications.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Community Forum Section -->
+                <div id="forum" class="section">
+                    <h2>Community Forum: Share & Connect</h2>
+                    <p>Connect with your community, share real-time updates, and report incidents. Your input helps everyone stay safe!</p>
+                    <div id="forumPosts">
+                        <div class="forum-post">
+                            <div class="user">RaviK_Fisherman</div>
+                            <div class="time">2025-07-17 09:00 PM IST</div>
+                            <div class="message">Heavy rains started in my village (Kovalam). Water levels rising near the bridge. Stay safe everyone! #ChennaiRains</div>
+                            <div class="likes">❤️ 25 Likes</div>
+                        </div>
+                        <div class="forum-post">
+                            <div class="user">Priya_CoastalGuard</div>
+                            <div class="time">2025-07-17 08:30 PM IST</div>
+                            <div class="message">Alert: Coast Guard advising all small fishing vessels to return to harbor by 10 PM. Rough seas expected. Please comply for your safety. #SeaSafety</div>
+                            <div class="likes">❤️ 40 Likes</div>
+                        </div>
+                        <div class="forum-post">
+                            <div class="user">LocalResident_TN</div>
+                            <div class="time">2025-07-17 07:45 PM IST</div>
+                            <div class="message">Just reached the Community Hall Shelter in Besant Nagar. It's well-managed and safe. Food and water being provided. Thank you to the volunteers! #CycloneShelter</div>
+                            <div class="likes">❤️ 32 Likes</div>
+                        </div>
+                    </div>
+                    <h3>Post a New Message or Report an Incident</h3>
+                    <div class="form-group">
+                        <label for="newMessage">Your Message:</label>
+                        <textarea id="newMessage" rows="4" placeholder="Share updates, ask questions, or report an incident..."></textarea>
+                    </div>
+                    <button class="btn btn-success" onclick="postMessage()">Post Message</button>
+                    <button class="btn btn-danger" onclick="alert('Functionality to report incidents will be added here. This would typically send a report to authorities.')">Report Incident</button>
+                </div>
+
+                <!-- Emergency Contacts Section -->
+                <div id="emergency" class="section">
+                    <h2>Emergency Contacts (India)</h2>
+                    <p>Important national and state-level emergency helplines for quick assistance.</p>
+                    <div class="emergency-grid">
+                        <div class="emergency-section">
+                            <h3>All-in-One Emergency</h3>
+                            <ul>
+                                <li><strong>National Emergency Number:</strong> <a href="tel:+91112">112</a></li>
+                                <li>(Police, Fire, Ambulance integrated)</li>
+                            </ul>
+                        </div>
+                        <div class="emergency-section">
+                            <h3>Police / Law Enforcement</h3>
+                            <ul>
+                                <li><strong>Police Control Room:</strong> <a href="tel:+91100">100</a></li>
+                                <li><strong>Coastal Police Helpline:</strong> <a href="tel:+911093">1093</a></li>
+                            </ul>
+                        </div>
+                        <div class="emergency-section">
+                            <h3>Fire Department</h3>
+                            <ul>
+                                <li><strong>Fire & Rescue Services:</strong> <a href="tel:+91101">101</a></li>
+                            </ul>
+                        </div>
+                        <div class="emergency-section">
+                            <h3>Ambulance / Medical Emergency</h3>
+                            <ul>
+                                <li><strong>Emergency Medical Services:</strong> <a href="tel:+91108">108</a></li>
+                                <li><strong>Disaster Helpline (Health):</strong> <a href="tel:+911075">1075</a></li>
+                            </ul>
+                        </div>
+                        <div class="emergency-section">
+                            <h3>Indian Coast Guard (Maritime Emergencies)</h3>
+                            <ul>
+                                <li><strong>Coastal Security Helpline:</strong> <a href="tel:+911554">1554</a></li>
+                                <li>(For distress at sea, oil spills, piracy)</li>
+                            </ul>
+                        </div>
+                        <div class="emergency-section">
+                            <h3>Disaster Management Authorities</h3>
+                            <ul>
+                                <li><strong>National Disaster Mgmt. Authority (NDMA):</strong> <a href="tel:+911078">1078</a></li>
+                                <li><strong>State Disaster Mgmt. Authority (SDMA):</strong> <a href="tel:+911070">1070</a> (State-specific)</li>
+                            </ul>
+                        </div>
+                        <div class="emergency-section">
+                            <h3>National Disaster Response Force (NDRF)</h3>
+                            <ul>
+                                <li><strong>NDRF Control Room:</strong> <a href="tel:+911126107953">011-26107953</a>, <a href="tel:+919711077372">9711077372</a></li>
+                                <li>(For specialized rescue operations)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Emergency Resources Section -->
+                <div id="resources" class="section">
+                    <h2>Disaster Resources & Aid</h2>
+                    <p>Information on government schemes, relief efforts, aid distribution, and recovery services for affected communities in India.</p>
+                    <div class="route-card">
+                        <h4>Prime Minister's National Relief Fund (PMNRF)</h4>
+                        <p>Provides immediate relief to families of those affected by natural calamities. Information on application and eligibility.</p>
+                        <a href="https://pmnrf.gov.in/" target="_blank" class="btn">Visit PMNRF Website</a>
+                    </div>
+                    <div class="route-card">
+                        <h4>National Disaster Management Authority (NDMA)</h4>
+                        <p>Official body for disaster management in India. Provides guidelines, plans, and awareness materials.</p>
+                        <a href="https://ndma.gov.in/" target="_blank" class="btn">Visit NDMA Website</a>
+                    </div>
+                    <div class="route-card">
+                        <h4>India Meteorological Department (IMD)</h4>
+                        <p>Official source for weather forecasts, cyclone warnings, and other meteorological advisories.</p>
+                        <a href="https://mausam.imd.gov.in/" target="_blank" class="btn">Visit IMD Website</a>
+                    </div>
+                    <div class="route-card">
+                        <h4>Indian National Centre for Ocean Information Services (INCOIS)</h4>
+                        <p>Provides ocean data, tsunami warnings, storm surge advisories, and potential fishing zone information.</p>
+                        <a href="https://incois.gov.in/" target="_blank" class="btn">Visit INCOIS Website</a>
+                    </div>
+                    <div class="route-card">
+                        <h4>National Disaster Response Force (NDRF)</h4>
+                        <p>Specialized force for disaster rescue and relief operations. Learn about their work and how they assist.</p>
+                        <a href="https://ndrf.gov.in/" target="_blank" class="btn">Visit NDRF Website</a>
+                    </div>
+                    <div class="route-card">
+                        <h4>Indian Red Cross Society</h4>
+                        <p>A leading humanitarian organization providing relief in times of disasters and promoting health and care.</p>
+                        <a href="https://indianredcross.org/" target="_blank" class="btn">Visit Indian Red Cross</a>
+                    </div>
+                    <div class="route-card">
+                        <h4>Food & Water Distribution Points</h4>
+                        <p><strong>Status:</strong> Active distribution centers in affected areas. Check with local administration or community leaders for nearest points.</p>
+                        <p><strong>Items:</strong> Packaged drinking water, dry rations, cooked meals (as available).</p>
+                        <a href="#" class="btn">View Distribution Map (Conceptual)</a>
+                    </div>
+                    <div class="route-card">
+                        <h4>Medical Aid Camps & First Aid Information</h4>
+                        <p>Temporary medical facilities set up by health departments and NGOs. Basic first aid guidelines for common injuries during disasters.</p>
+                        <ul>
+                            <li><strong>Common Injuries:</strong> Cuts, bruises, fractures, dehydration, heat stroke.</li>
+                            <li><strong>First Aid Tip:</strong> Clean wounds with antiseptic, apply pressure to bleeding. Seek professional help for serious injuries.</li>
+                        </ul>
+                        <a href="#" class="btn">Find Nearest Medical Camp (Conceptual)</a>
+                    </div>
+                    <div class="route-card">
+                        <h4>Psychological First Aid (PFA) Support</h4>
+                        <p>Information and contacts for mental health support during and after a disaster.</p>
+                        <p><strong>Helpline:</strong> National Institute of Mental Health and Neurosciences (NIMHANS) - <a href="tel:+918026995000">080-26995000</a></p>
+                        <a href="#" class="btn">Learn about PFA</a>
+                    </div>
+                </div>
+
+                <!-- Interactive Map Section -->
+                <div id="interactiveMapSection" class="section">
+                    <h2>Interactive Coastal Map: India</h2>
+                    <p>Explore key coastal features, fishing zones, and potential hazard areas specific to the Indian coastline.</p>
+                    <div id="fishingMap"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Registration/Login Modal -->
+    <div id="registrationModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('registrationModal')">&times;</span>
+            <h2>Welcome to Safe Sea App!</h2>
+            <p style="margin-bottom: 20px; color: #555;">Please register or login to access full features and personalized alerts.</p>
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <input type="text" id="username" required placeholder="Enter your username">
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" required placeholder="Enter your password">
+            </div>
+            <button class="btn btn-success" onclick="registerLogin()">Get Started</button>
+        </div>
+    </div>
+
+    <script>
+        // Global map variables
+        let fishingMapInstance; // For the interactive fishing map
+        let evacuationMapInstance; // For the evacuation map
+        let userLat, userLng; // To store user's current location
+        let evacuationRouteMarkers = []; // To store markers for evacuation routes on the evacuation map
+
+        // Evacuation Routes Data (Example: Actual data would be fetched from a backend, centered around Chennai)
+        const evacuationRoutes = [
+            { id: 1, name: 'Chennai Corporation Cyclone Shelter', lat: 13.0061, lng: 80.2500, details: 'Besant Nagar, Chennai' },
+            { id: 2, name: 'Anna University Campus Shelter', lat: 13.0118, lng: 80.2370, details: 'Guindy, Chennai (Higher Ground)' },
+            { id: 3, name: 'Kamaraj Port Community Hall', lat: 13.2500, lng: 80.3200, details: 'Ennore, North Chennai' },
+            { id: 4, name: 'Puducherry Govt. School Shelter', lat: 11.9139, lng: 79.8145, details: 'Ariyankuppam, Puducherry' }
+        ];
+
+        // Map data for fishing zones and ports (Example: Indian Coastal areas)
+        const noFishingZones = [
+            { id: 1, lat: 12.9716, lng: 79.1596, name: 'Pulicat Lake Bird Sanctuary', reason: 'Ecological Protection' }, // Near Chennai
+            { id: 2, lat: 10.8505, lng: 76.2711, name: 'Chaliyar River Estuary', reason: 'Environmental Sensitivity' }, // Kerala
+            { id: 3, lat: 18.0000, lng: 83.5000, name: 'Visakhapatnam Naval Area', reason: 'Restricted Military Zone' } // Andhra Pradesh
+        ];
+
+        const fishingPorts = [
+            { id: 1, lat: 13.0786, lng: 80.2829, name: 'Chennai Fishing Harbour', facilities: 'Ice Plant, Fuel, Auction Hall, Repair' },
+            { id: 2, lat: 9.9665, lng: 76.2458, name: 'Kochi Fisheries Harbour', facilities: 'Major Port, Cold Storage, Processing Units' },
+            { id: 3, lat: 17.6868, lng: 83.2185, name: 'Visakhapatnam Fishing Harbour', facilities: 'Deep Sea Fishing, Processing, Exports' },
+            { id: 4, lat: 11.9139, lng: 79.8145, name: 'Puducherry Fishing Jetty', facilities: 'Local Boats, Small Market' }
+        ];
+
+        function updateCurrentTime() {
+            const now = new Date();
+            document.getElementById('currentTime').innerText = now.toLocaleString('en-IN', {
+                day: '2-digit', month: 'short', year: 'numeric',
+                hour: '2-digit', minute: '2-digit', second: '2-digit',
+                hour12: true, timeZoneName: 'short'
+            });
+        }
+
+        setInterval(updateCurrentTime, 1000); // Update time every second
+
+        function showSection(sectionId) {
+            // Hide all sections
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.remove('active');
+            });
+            // Deactivate all menu items
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            // Show the selected section
+            const selectedSection = document.getElementById(sectionId);
+            if (selectedSection) {
+                selectedSection.classList.add('active');
+            }
+
+            // Activate the corresponding menu item
+            const menuItem = document.querySelector(`.menu-item[onclick*="${sectionId}"]`);
+            if (menuItem) {
+                menuItem.classList.add('active');
+            }
+
+            // Initialize the main interactive map if it's the 'interactiveMapSection'
+            if (sectionId === 'interactiveMapSection') {
+                initFishingMap();
+            } else if (sectionId === 'evacuation') {
+                // Initialize the evacuation map if it's the 'evacuation' section
+                initEvacuationMap();
+            }
+        }
+
+        // Functions for Registration/Login Modal
+        function showModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex'; /* Changed to flex to enable centering */
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        function checkRegistration() {
+            const username = localStorage.getItem('registeredUsername');
+            if (!username) {
+                showModal('registrationModal');
+            } else {
+                document.getElementById('userWelcome').innerText = `Welcome, ${username}!`;
+                closeModal('registrationModal');
+            }
+        }
+
+        function registerLogin() {
+            const usernameInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
+            const username = usernameInput.value;
+            const password = passwordInput.value;
+
+            // Basic validation (in a real app, this would be handled server-side)
+            if (username && password) {
+                localStorage.setItem('registeredUsername', username);
+                document.getElementById('userWelcome').innerText = `Welcome, ${username}!`;
+                closeModal('registrationModal');
+                alert(`Welcome, ${username}! You are now registered/logged in.`);
+            } else {
+                alert('Please enter both username and password.');
+            }
+        }
+
+        function postMessage() {
+            const newMessageText = document.getElementById('newMessage').value;
+            if (newMessageText.trim() === '') {
+                alert('Message cannot be empty!');
+                return;
+            }
+
+            const forumPostsDiv = document.getElementById('forumPosts');
+            const newPost = document.createElement('div');
+            newPost.classList.add('forum-post');
+            const now = new Date();
+            const timeString = now.toLocaleString('en-IN', {
+                day: '2-digit', month: 'short', year: 'numeric',
+                hour: '2-digit', minute: '2-digit', hour12: true
+            });
+            const username = localStorage.getItem('registeredUsername') || 'Anonymous User';
+
+            newPost.innerHTML = `
+                <div class="user">${username}</div>
+                <div class="time">${timeString}</div>
+                <div class="message">${newMessageText}</div>
+                <div class="likes">❤️ 0 Likes</div>
+            `;
+            forumPostsDiv.prepend(newPost); // Add new post to the top
+            document.getElementById('newMessage').value = ''; // Clear textarea
+        }
+
+        // Initialize main interactive map (from Finaldraft.html)
+        function initFishingMap() {
+            // Check if map already exists and remove it to re-initialize
+            const mapContainer = document.getElementById('fishingMap');
+            if (fishingMapInstance) {
+                fishingMapInstance.remove();
+                fishingMapInstance = null; // Clear the instance
+            }
+            // Ensure the container is visible before initializing
+            if (mapContainer && mapContainer.offsetWidth > 0 && mapContainer.offsetHeight > 0) {
+                fishingMapInstance = L.map('fishingMap').setView([13.0827, 80.2707], 12); // Centered on Chennai
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                }).addTo(fishingMapInstance);
+
+                noFishingZones.forEach(zone => {
+                    L.circle([zone.lat, zone.lng], {
+                        color: 'red',
+                        fillColor: '#f03',
+                        fillOpacity: 0.5,
+                        radius: 5000 // meters, larger for ecological zones
+                    }).addTo(fishingMapInstance).bindPopup(`<b>No-Fishing Zone:</b> ${zone.name}<br>Reason: ${zone.reason}`);
+                });
+
+                fishingPorts.forEach(port => {
+                    L.marker([port.lat, port.lng], { icon: L.divIcon({ className: 'custom-div-icon', html: '<span style="color: green; font-size: 24px;">&#9679;</span>', iconSize: [24, 24], iconAnchor: [12, 12] }) })
+                     .addTo(fishingMapInstance)
+                     .bindPopup(`<b>Fishing Port:</b> ${port.name}<br>Facilities: ${port.facilities}`);
+                });
+
+                fishingMapInstance.on('click', function(e) {
+                    const { lat, lng } = e.latlng;
+                    L.marker([lat, lng])
+                      .addTo(fishingMapInstance)
+                      .bindPopup(`📍 Trip Logged at:<br>Lat: ${lat.toFixed(3)}<br>Lng: ${lng.toFixed(3)}`)
+                      .openPopup();
+                });
+
+                const legend = L.control({ position: 'bottomright' });
+                legend.onAdd = function() {
+                    const div = L.DomUtil.create('div', 'map-legend');
+                    div.innerHTML = `
+                        <h4>Map Legend</h4>
+                        <p><span style="color:green;">●</span> Fishing Port</p>
+                        <p><span style="color:red;">●</span> No-Fishing Zone</p>
+                        <p><span style="color:blue;">●</span> Your Location</p>
+                    `;
+                    return div;
+                };
+                legend.addTo(fishingMapInstance);
+
+                // Add user location to this map as well
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(function(position) {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        L.marker([lat, lng], { icon: L.divIcon({ className: 'custom-div-icon', html: '<span style="color: blue; font-size: 24px;">&#9679;</span>', iconSize: [24, 24], iconAnchor: [12, 12] }) })
+                            .addTo(fishingMapInstance)
+                            .bindPopup("<b>Your Location</b>").openPopup();
+                    }, showLocationError);
+                }
+                fishingMapInstance.invalidateSize(); // Invalidate size after map is visible
+            } else {
+                console.warn("Fishing map container not visible or not found, delaying initialization.");
+                // You might want to add a setTimeout here to retry if the container is not immediately visible
+            }
+        }
+
+        // Initialize evacuation map (original ss.html map logic)
+        function initEvacuationMap() {
+            // Check if map already exists and remove it to re-initialize
+            const mapContainer = document.getElementById('evacuationMap');
+            if (evacuationMapInstance) {
+                evacuationMapInstance.remove();
+                evacuationMapInstance = null; // Clear the instance
+            }
+
+            if (mapContainer && mapContainer.offsetWidth > 0 && mapContainer.offsetHeight > 0) {
+                evacuationMapInstance = L.map('evacuationMap').setView([13.0827, 80.2707], 12); // Centered on Chennai
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                }).addTo(evacuationMapInstance);
+
+                // Add evacuation route markers
+                evacuationRouteMarkers = []; // Clear previous markers
+                evacuationRoutes.forEach((route, idx) => {
+                    const marker = L.marker([route.lat, route.lng])
+                        .addTo(evacuationMapInstance)
+                        .bindPopup(`<b>Evacuation Route:</b> ${route.name}<br>${route.details}`);
+                    evacuationRouteMarkers.push(marker);
+                });
+
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(showEvacuationLocation, showLocationError);
+                } else {
+                    alert("Geolocation is not supported by this browser.");
+                }
+                evacuationMapInstance.invalidateSize(); // Invalidate size after map is visible
+            } else {
+                console.warn("Evacuation map container not visible or not found, delaying initialization.");
+            }
+        }
+
+        function showEvacuationLocation(position) {
+            userLat = position.coords.latitude;
+            userLng = position.coords.longitude;
+
+            L.marker([userLat, userLng])
+                .addTo(evacuationMapInstance)
+                .bindPopup("<b>Your Location</b>").openPopup();
+
+            evacuationMapInstance.setView([userLat, userLng], 14);
+
+            let minDist = Infinity, nearestRoute = null, nearestMarker = null;
+            evacuationRoutes.forEach((route, idx) => {
+                const dist = evacuationMapInstance.distance([userLat, userLng], [route.lat, route.lng]);
+                if (dist < minDist) {
+                    minDist = dist;
+                    nearestRoute = route;
+                    nearestMarker = evacuationRouteMarkers[idx];
+                }
+            });
+
+            if (nearestMarker && nearestRoute) {
+                nearestMarker.openPopup();
+                nearestMarker.setZIndexOffset(1000);
+                L.polyline([[userLat, userLng], [nearestRoute.lat, nearestRoute.lng]], {color: 'blue', weight: 3, dashArray: '5,10'}).addTo(evacuationMapInstance);
+            }
+        }
+
+        function showLocationError(error) {
+            // Log the full error object for debugging
+            console.error("Geolocation error:", error);
+            let errorMessage = "Could not get your location. Please allow location access or enter your location manually.";
+            if (error && error.message) {
+                errorMessage += ` Error details: ${error.message}`;
+            }
+            // Using alert for now as per original code, but custom modal is preferred for user-facing messages.
+            alert(errorMessage);
+        }
+
+        // Initial setup on page load
+        function init() {
+            updateCurrentTime();
+            checkRegistration();
+            showSection('home'); // Show home dashboard by default
+            // Maps will be initialized when their respective sections are clicked
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
